@@ -3,10 +3,13 @@ Random Forest implementation
 author: li zeng
 """
 import os
+os.chdir(os.path.realpath(os.curdir))
 import sys
+sys.path.append(os.path.realpath(os.curdir)+'/..')
 import pandas as pd
 from sklearn import ensemble
 from matplotlib import pyplot as plt
+import clean_final
 
 # command line inputs
 # input_fd = '../data/raw'
@@ -20,23 +23,23 @@ LOAD DATA
 ----------------------""" 
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 
+# preprocessing function
+TRAIN = clean_final.preproc(TRAIN)
 y = TRAIN.y
 del TRAIN['y']
 
-# convert categorical columns
-TRAIN2 = pd.get_dummies(TRAIN,columns=TRAIN.select_dtypes(['object']).columns)
 
 """----------------------
 RF
 ----------------------""" 
-Nfeature = TRAIN2.shape[1]
-rf_fit = ensemble.RandomForestRegressor(n_estimators = 800, max_features = Nfeature/2, verbose=1,n_jobs=2,\
+Nfeature = TRAIN.shape[1]
+rf_fit = ensemble.RandomForestRegressor(n_estimators = 800, max_features = Nfeature//2, verbose=1,n_jobs=2,\
                                         oob_score=True)
-rf_fit.fit(TRAIN2,y)
+rf_fit.fit(TRAIN,y)
 
 # report results on training data
 imp = rf_fit.feature_importances_
-imp = pd.Series(imp,index=TRAIN2.columns)
+imp = pd.Series(imp,index=TRAIN.columns)
 imp.sort_values(ascending=False,inplace=True)
 Nshow =30
 imp = imp.iloc[:Nshow]
