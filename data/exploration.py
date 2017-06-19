@@ -57,3 +57,8 @@ plt.legend((p1[0], p2[0]), ('Zero count', 'One Count'))
 """----------------------
 EXPLORATION with y
 ----------------------""" 
+plt.figure(figsize=(15,10))
+train['y'].hist(bins=100)
+plt.xlabel('Y')
+plt.title('Distribution of Y variable')
+plt.show()
