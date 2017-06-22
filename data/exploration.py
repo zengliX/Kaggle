@@ -10,7 +10,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import math
 
 #Disable pandas warnings
 pd.options.mode.chained_assignment = None

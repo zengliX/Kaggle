@@ -1,2 +1,5 @@
 *.txt
 *.pdf
+*.csv
+*Icon*
+*pycache*

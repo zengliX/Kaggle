@@ -10,7 +10,6 @@ import pandas as pd
 import numpy as np
 from sklearn import ensemble
 from matplotlib import pyplot as plt
-import clean_final
 
 # command line inputs
 # input_fd = '../data/raw'
@@ -26,10 +25,6 @@ LOAD DATA
 ----------------------""" 
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
-
-# preprocessing function
-#TRAIN,TEST = preproc(TRAIN,TEST)
-TRAIN,TEST = clean_final.preproc(TRAIN,TEST)
 
 y = TRAIN.y
 del TRAIN['y']
