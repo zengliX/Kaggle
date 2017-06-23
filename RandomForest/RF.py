@@ -3,7 +3,6 @@ Random Forest implementation
 author: li zeng
 """
 import os
-os.chdir(os.path.realpath(os.curdir))
 import sys
 sys.path.append(os.path.realpath(os.curdir)+'/..')
 import pandas as pd
@@ -12,8 +11,8 @@ from sklearn import ensemble
 from matplotlib import pyplot as plt
 
 # command line inputs
-# input_fd = '../data/raw'
-# output_fd = './raw'
+# input_fd = '../data/cleaned2'
+# output_fd = './cleaned2_first8'
 _, input_fd, output_fd = sys.argv
 
 if not os.path.exists(output_fd):
@@ -30,10 +29,27 @@ y = TRAIN.y
 del TRAIN['y']
 del TEST['y']
 
+X0_cols = list(filter(lambda x: 'X0'+'_' in x, TRAIN.columns))
+TRAIN.drop(X0_cols,axis=1,inplace=True)
+TEST.drop(X0_cols,axis=1,inplace=True)
+
+
+# only use X1 - X8 + new group
+keep = ['X1','X2','X3','X4','X5','X6','X8','new_group']
+exp_keep = []
+for k in keep:
+    exp_keep += list(filter(lambda x: k+'_' in x, TRAIN.columns))
+
+len(exp_keep)
+
+TRAIN = TRAIN.loc[:,exp_keep]
+TEST = TEST.loc[:,exp_keep]
+
+
+
 """----------------------
 RF
 ----------------------""" 
-np.random.seed(23)
 Nfeature = TRAIN.shape[1]
 rf_fit = ensemble.RandomForestRegressor(n_estimators = 800, max_features = Nfeature//2, verbose=1,n_jobs=2,\
                                         oob_score=True)
@@ -43,10 +59,10 @@ rf_fit.fit(TRAIN,y)
 imp = rf_fit.feature_importances_
 imp = pd.Series(imp,index=TRAIN.columns)
 imp.sort_values(ascending=False,inplace=True)
-Nshow =30
+Nshow =50
 imp = imp.iloc[:Nshow]
 
-f = plt.figure()
+f= plt.figure(figsize=(5,18))
 plt.barh(range(0,len(imp)),imp.values[::-1],align='center')
 plt.yticks(range(0,len(imp)),imp.index[::-1])
 f.savefig(os.path.join(output_fd,'imp.pdf'))
@@ -60,4 +76,4 @@ GENERATE PREDICTIONS
 ----------------------""" 
 pred =rf_fit.predict(TEST)
 pred = pd.DataFrame(pred,index = TEST.index,columns=['y'])
-pred.to_csv(output_fd+'/RF_0617.csv',index_label='ID')
+pred.to_csv(output_fd+'/RF_0623.csv',index_label='ID')
