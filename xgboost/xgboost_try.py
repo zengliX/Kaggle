@@ -77,7 +77,7 @@ def param_gen(eta,max_depth,sub,col_sub):
 #params_list = param_gen(ntree=[500,400,600],eta=[.05,.02,.1],max_depth=[2,3,4,5,6],sub=[1,.8,.9])
 params_list = param_gen(eta=[.05,.01,.005],max_depth=[2,3,4,5],sub=[1,.8,.9],col_sub=[.3,.6,1])
 
-#params_list = param_gen(ntree=[500],eta=[0.1,.05],max_depth=[2,3],sub=[1])
+#params_list = param_gen(eta=[0.1,.05],max_depth=[3],sub=[1],col_sub=[1])
 
 """----------------------
 CROSS VALIDATION IN TRAINING
@@ -116,7 +116,7 @@ def myCV(xgb_params):
                            dtrain, 
                            num_boost_round=3000, # increase to have better results (~700)
                            early_stopping_rounds=40,
-                           verbose_eval=50, 
+                           verbose_eval=False, 
                            show_stdv=False
                            )
         niter = cv_result.shape[0]
@@ -156,14 +156,15 @@ print('------------------------------------------------------')
 
 
 # final parameter
-# remove highest and lowest
-test_r2 = [x['fit']['test_r2'] for x in cv_out]
-def temp_f(x):
-    return np.sort(x)[1:-1].mean()
-new_mean = list(map(temp_f,test_r2))
-final_params = cv_out[np.argmax(new_mean)]['pars']
 
-#final_params = cv_out[np.argmax([x['fit']['test_r2_mean'] for x in cv_out])]['pars']
+# remove highest and lowest
+#test_r2 = [x['fit']['test_r2'] for x in cv_out]
+#def temp_f(x):
+#    return np.sort(x)[1:-1].mean()
+#new_mean = list(map(temp_f,test_r2))
+#final_params = cv_out[np.argmax(new_mean)]['pars']
+
+final_params = cv_out[np.argmax([x['fit']['test_r2_mean'] for x in cv_out])]['pars']
 
 
 """----------------------

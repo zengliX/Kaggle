@@ -61,23 +61,22 @@ TEST = TEST.loc[:,exp_keep]
 GENERATE PARAMETERS
 ----------------------""" 
 
-def param_gen(ntree,eta,max_depth,sub,col_sub):
+def param_gen(eta,max_depth,sub,col_sub):
     out= []
-    for n,e,m,s,cs in itertools.product(ntree,eta,max_depth,sub,col_sub):
+    for e,m,s,cs in itertools.product(eta,max_depth,sub,col_sub):
         xgb_params = {
-        'n_trees': n, 
         'eta': e,
         'max_depth': m,
         'subsample': s,
         'objective': 'reg:linear',
         'eval_metric': 'rmse',
-        'colsample_bylevel':cs,
+        'colsample_bytree':cs,
         'silent': 1}
         out.append(xgb_params)
     return out
 
 #params_list = param_gen(ntree=[500,400,600],eta=[.05,.02,.1],max_depth=[2,3,4,5,6],sub=[1,.8,.9])
-params_list = param_gen(ntree=[500],eta=[.05,.01,.005],max_depth=[2,3,4,5],sub=[1,.8,.9],col_sub=[.3,.6,1])
+params_list = param_gen(eta=[.05,.01,.005],max_depth=[2,3,4,5],sub=[1,.8,.9],col_sub=[.3,.6,1])
 
 #params_list = param_gen(ntree=[500],eta=[0.1,.05],max_depth=[2,3],sub=[1])
 
@@ -88,7 +87,6 @@ np.random.seed(1)
 
 """
 xgb_params = {
-    'n_trees': 500, 
     'eta': 0.05,
     'max_depth': 4,
     'subsample': 0.95,
