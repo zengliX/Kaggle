@@ -16,7 +16,7 @@ pd.options.mode.chained_assignment = None
 import warnings
 warnings.filterwarnings('ignore')
 import pandas as pd
-
+from sklearn.cross_decomposition import PLSRegression
 ########################################
 #### LOAD TRAINING DATA ########################
 ########################################
@@ -106,6 +106,7 @@ pd.Series(map(lambda x: np.sum(test['X0']==x),intest_only),index= intest_only)
     # total 6 samples have new X0
 """
 
+"""
 # X0 interaction with X1-X8
 def new_show_var(var_name):
     temp = train[var_name].to_frame().join(train['y'])
@@ -116,11 +117,39 @@ def new_show_var(var_name):
     plt.show()
 
 new_show_var('X5')
+"""
+
 """----------------------
 EXPLORATION with y
 ----------------------""" 
+
+# distribution of y
 plt.figure(figsize=(15,10))
 fig = sns.distplot(train['y'],bins=100)
 plt.xlabel('Y')
 plt.title('Distribution of Y variable')
 fig.get_figure().savefig('y_dist.pdf')
+
+
+# y vs all binary
+
+
+# y vs row sum
+cars = ['X'+str(x) for x in range(9)]+['y']
+def f(x):
+    return any([(z == x) for z in cars ])
+tests_cols = [x for x in train.columns if not f(x)]
+
+Nt = train[tests_cols].sum(axis=1)
+train['Nt'] = Nt
+plt.scatter(Nt,y)
+
+
+# correlation component analysis
+y = train['y']
+train.drop(['y','new_group'],axis=1,inplace=True)
+pls = PLSRegression(n_components=10,scale=False)
+pls.fit(train[tests_cols],res)
+rotations = pls.x_rotations_
+plt.plot(rotations[:,0])
+plt.scatter(train[tests_cols].dot(rotations[:,2]),res)
