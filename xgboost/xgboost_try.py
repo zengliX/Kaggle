@@ -13,6 +13,7 @@ matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from sklearn.metrics import r2_score
 from sklearn.model_selection import KFold
+from sklearn.linear_model import LinearRegression
 import itertools
 import pickle
 import time
@@ -38,23 +39,23 @@ del TRAIN['y']
 del TEST['y']
 
 
+"""----------------------
+LINEAR MODEL with X0
+----------------------""" 
 X0_cols = list(filter(lambda x: 'X0'+'_' in x, TRAIN.columns))
+
+linear_fit = LinearRegression(fit_intercept=False)
+linear_fit.fit(TRAIN[X0_cols],y)
+linear_fit.score(TRAIN[X0_cols],y)        
+y_linear_train = linear_fit.predict(TRAIN[X0_cols]) # linear pred on train
+y_linear_test = linear_fit.predict(TEST[X0_cols]) # linear pred on test
+res = y - y_linear_train # residual
+
+
+# drop X0 columns
 TRAIN.drop(X0_cols,axis=1,inplace=True)
 TEST.drop(X0_cols,axis=1,inplace=True)
 
-
-"""
-# only use X1 - X8 + new group
-keep = ['X1','X2','X3','X4','X5','X6','X8','new_group']
-exp_keep = []
-for k in keep:
-    exp_keep += list(filter(lambda x: k+'_' in x, TRAIN.columns))
-
-len(exp_keep)
-
-TRAIN = TRAIN.loc[:,exp_keep]
-TEST = TEST.loc[:,exp_keep]
-"""
 
 """----------------------
 GENERATE PARAMETERS
@@ -77,7 +78,7 @@ def param_gen(eta,max_depth,sub,col_sub):
 #params_list = param_gen(ntree=[500,400,600],eta=[.05,.02,.1],max_depth=[2,3,4,5,6],sub=[1,.8,.9])
 params_list = param_gen(eta=[.05,.01,.005],max_depth=[2,3,4,5],sub=[1,.8,.9],col_sub=[.3,.6,1])
 
-#params_list = param_gen(eta=[0.1,.05],max_depth=[3],sub=[1],col_sub=[1])
+#params_list = param_gen(eta=[.01],max_depth=[2,3,4],sub=[1],col_sub=[1])
 
 """----------------------
 CROSS VALIDATION IN TRAINING
@@ -107,7 +108,7 @@ def myCV(xgb_params):
         print('calculating fold:',ct)
         # split data
         X_train, X_test = TRAIN.iloc[train_ind], TRAIN.iloc[test_ind]
-        y_train, y_test = y.iloc[train_ind], y.iloc[test_ind]
+        y_train, y_test = res.iloc[train_ind], res.iloc[test_ind]
     
         # fit xgboost
         dtrain = xgb.DMatrix(X_train, y_train, feature_names=X_train.columns.values)
@@ -116,13 +117,13 @@ def myCV(xgb_params):
                            dtrain, 
                            num_boost_round=3000, # increase to have better results (~700)
                            early_stopping_rounds=40,
-                           verbose_eval=False, 
+                           verbose_eval=50, 
                            show_stdv=False
                            )
         niter = cv_result.shape[0]
         model = xgb.train(dict(xgb_params, silent=0), dtrain, num_boost_round=niter)
-        out['train_r2'].append(r2_score(dtrain.get_label(), model.predict(dtrain)))
-        out['test_r2'].append(r2_score(dtest.get_label(), model.predict(dtest)))
+        out['train_r2'].append(r2_score( y.iloc[train_ind], y_linear_train[train_ind] + model.predict(dtrain)))
+        out['test_r2'].append(r2_score(y.iloc[test_ind], y_linear_train[test_ind]+model.predict(dtest)))
         ct += 1
     out['train_r2_mean']=np.mean(out['train_r2'])
     out['test_r2_mean']=np.mean(out['test_r2'])
@@ -172,7 +173,7 @@ FINAL MODEL
 ----------------------""" 
 
 # form DMatrices for xgb training
-dtrain = xgb.DMatrix(TRAIN, y, feature_names=TRAIN.columns.values)
+dtrain = xgb.DMatrix(TRAIN, res, feature_names=TRAIN.columns.values)
 dtest = xgb.DMatrix(TEST)
 
 
@@ -184,9 +185,6 @@ cv_result = xgb.cv(final_params,
                    verbose_eval=50, 
                    show_stdv=False
                   )
-#temp = cv_result.iloc[-1,:]
-#sd1_val = temp['test-rmse-mean'] + 0.5*temp['test-rmse-std'] # 1 std from mininum
-#niter_1sd = cv_result.index[cv_result['test-rmse-mean']<sd1_val][0]
 niter = cv_result.shape[0]
 
 # train model
@@ -196,8 +194,7 @@ model2 = xgb.train(dict(final_params, silent=0), dtrain, num_boost_round=niter)
 # score
 # r2_train1 = r2_score(dtrain.get_label(), model1.predict(dtrain))
 # print("R2 on training:",r2_train1,'\n')
-
-r2_train2 = r2_score(dtrain.get_label(), model2.predict(dtrain))
+r2_train2 = r2_score(y, y_linear_train + model2.predict(dtrain))
 print('------------------------------------------------------')
 print("R2 on training:",r2_train2,'\n')
 print('------------------------------------------------------')
@@ -212,9 +209,11 @@ PREDICTION
 # output = pd.DataFrame({'ID': TEST.index, 'y': y_pred})
 # output.to_csv(output_fd+'/XGB_tuned1.csv',index=False)
 
-y_pred = model2.predict(dtest)
-output = pd.DataFrame({'ID': TEST.index, 'y': y_pred})
-output.to_csv(output_fd+'/XGB_tuned2.csv',index=False)
+y_pred = y_linear_test + model2.predict(dtest)
+
+output = pd.DataFrame({'y': y_pred},index=TEST.index)
+output.loc[[289,624,5816,6585,7420,7805],:] = 100.63 # set to mean
+output.to_csv(output_fd+'/XGB_withLinear_tuned.csv',index_label='ID')
 
 
 fig, ax = plt.subplots(figsize=(12,30))

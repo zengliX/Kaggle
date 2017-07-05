@@ -29,11 +29,17 @@ y = TRAIN.y
 del TRAIN['y']
 del TEST['y']
 
+
+sele_cols = list(filter(lambda x: ('new_group'+'_' in x) or ('X314' in x) or ('X8_' in x) or ('X2_' in x) , TRAIN.columns))
+TRAIN = TRAIN[sele_cols]
+TEST= TEST[sele_cols]
+
+
 X0_cols = list(filter(lambda x: 'X0'+'_' in x, TRAIN.columns))
 TRAIN.drop(X0_cols,axis=1,inplace=True)
 TEST.drop(X0_cols,axis=1,inplace=True)
 
-
+"""
 # only use X1 - X8 + new group
 keep = ['X1','X2','X3','X4','X5','X6','X8','new_group']
 exp_keep = []
@@ -44,7 +50,7 @@ len(exp_keep)
 
 TRAIN = TRAIN.loc[:,exp_keep]
 TEST = TEST.loc[:,exp_keep]
-
+"""
 
 
 """----------------------
@@ -52,8 +58,9 @@ RF
 ----------------------""" 
 Nfeature = TRAIN.shape[1]
 rf_fit = ensemble.RandomForestRegressor(n_estimators = 800, max_features = Nfeature//2, verbose=1,n_jobs=2,\
-                                        oob_score=True)
+                                        oob_score=True,max_depth=5)
 rf_fit.fit(TRAIN,y)
+rf_fit.oob_score_
 
 # report results on training data
 imp = rf_fit.feature_importances_
@@ -76,4 +83,4 @@ GENERATE PREDICTIONS
 ----------------------""" 
 pred =rf_fit.predict(TEST)
 pred = pd.DataFrame(pred,index = TEST.index,columns=['y'])
-pred.to_csv(output_fd+'/RF_0623.csv',index_label='ID')
+pred.to_csv(output_fd+'/RF_0702.csv',index_label='ID')

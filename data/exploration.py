@@ -61,11 +61,13 @@ def show_var(var_name):
     temp = train[var_name].to_frame().join(train['y'])
     temp = temp.groupby(var_name).mean().sort_values(by='y')
     col_order = temp.index.values
-    plt.figure(figsize=(12,6))
+    plt.figure(figsize=(12,10))
     sns.stripplot(x=var_name, y='y', data=train, order=col_order)
     plt.show()
+    plt.figure(figsize=(12,10))
     sns.violinplot(x=var_name, y='y', data=train, order=col_order)
     plt.show()
+    plt.figure(figsize=(12,10))
     sns.boxplot(x=var_name, y='y', data=train, order=col_order)
     plt.show()
 
@@ -78,7 +80,7 @@ show_var('X5')
 show_var('X6')
 show_var('X8')
 
-
+"""
 # separate X0 into 4 groups
 var_name= 'X0'
 temp = train[var_name].to_frame().join(train['y'])
@@ -102,13 +104,14 @@ g.map(sns.distplot,'y')
 intest_only = np.setdiff1d(test['X0'].unique(),train['X0'].unique())
 pd.Series(map(lambda x: np.sum(test['X0']==x),intest_only),index= intest_only)
     # total 6 samples have new X0
+"""
 
-# new_group interaction with X1-X8
+# X0 interaction with X1-X8
 def new_show_var(var_name):
     temp = train[var_name].to_frame().join(train['y'])
     temp = temp.groupby(var_name).mean().sort_values(by='y')
     col_order = temp.index.values
-    g=sns.FacetGrid(train, row="new_group",aspect=2)
+    g=sns.FacetGrid(train, row="X0",aspect=2)
     g.map(sns.violinplot,var_name,'y',order=col_order)
     plt.show()
 

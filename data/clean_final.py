@@ -10,7 +10,7 @@ import numpy as np
 Parameters
 percent_cut: select variables that both group frequency > percent_cut
 -------------------------"""
-percent_cut = 0.02
+percent_cut = 0.001
 
 
 """ -------------------------
@@ -22,6 +22,7 @@ train = TRAIN = pd.DataFrame.from_csv('./raw/train.csv')
 TEST = pd.DataFrame.from_csv('./raw/test.csv')
 tr = pd.concat([TRAIN,TEST],axis=0,join='outer')
 
+"""
 # separate X0 into 4 groups
 var_name= 'X0'
 temp = train[var_name].to_frame().join(train['y'])
@@ -43,7 +44,7 @@ def f(x):
         return new_group.loc[x]
     return 'E'
 tr['new_group'] = pd.Series(map(f,tr['X0']),index = tr.index)
-
+"""
 
 # change categorical to dummy variables
 tr = pd.get_dummies(tr,columns = tr.select_dtypes(['object']).columns)   
@@ -54,6 +55,7 @@ for col in tr.columns:
     if tr[col].dtype == 'int64':
         zero_freq = np.sum(tr[col]==0)/len(tr)
         if zero_freq > 1-percent_cut or zero_freq < percent_cut:
+            print('dropping',col)
             to_del.append(col)
 tr = tr.drop(to_del,axis=1)
 tr = tr[np.logical_or(tr['y']<175, np.isnan(tr['y'])) ]
@@ -61,6 +63,6 @@ tr = tr[np.logical_or(tr['y']<175, np.isnan(tr['y'])) ]
 TRAIN = tr.loc[np.intersect1d(tr.index,TRAIN.index)]
 TEST= tr.loc[TEST.index]
     
-TRAIN.to_csv('./cleaned2/train.csv')
-TEST.to_csv('./cleaned2/test.csv')
+TRAIN.to_csv('./cleaned3/train.csv')
+TEST.to_csv('./cleaned3/test.csv')
 
