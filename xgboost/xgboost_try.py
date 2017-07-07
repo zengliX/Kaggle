@@ -17,10 +17,12 @@ from sklearn.linear_model import LinearRegression
 import itertools
 import pickle
 import time
+import mca
+from sklearn.decomposition import PCA, FastICA
 
 # command line inputs
-#input_fd = '../data/cleaned3'
-#output_fd = './temp'
+# input_fd = '../data/cleaned3'
+# output_fd = './temp'
 input_fd=sys.argv[1] 
 output_fd = sys.argv[2]
 
@@ -57,6 +59,33 @@ TRAIN.drop(X0_cols,axis=1,inplace=True)
 TEST.drop(X0_cols,axis=1,inplace=True)
 
 
+# # Append decomposition components to datasets
+
+bin_cols = [x for x in TRAIN.columns if not '_' in x]
+temp = pd.concat([TRAIN,TEST],axis=0)[bin_cols]
+
+ncomp=5
+
+# MCA
+mca_out = mca.mca(temp,ncols=ncomp)
+mca_mat = pd.DataFrame(mca_out.fs_r_sup(temp,ncomp),index=temp.index)
+
+
+# ICA
+ica = FastICA(n_components=ncomp, random_state=420)
+ica_mat =pd.DataFrame(ica.fit_transform(temp),index=temp.index)
+
+
+# append
+for i in range(min(ncomp,mca_mat.shape[1])):
+    TRAIN['mca_' + str(i)] = mca_mat.loc[TRAIN.index,i]
+    TEST['mca_' + str(i)] = mca_mat.loc[TEST.index,i]
+
+for i in range(min(ncomp,ica_mat.shape[1])):
+    TRAIN['ica_' + str(i)] = ica_mat.loc[TRAIN.index, i]
+    TEST['ica_' + str(i)] = ica_mat.loc[TEST.index, i]
+
+
 """----------------------
 GENERATE PARAMETERS
 ----------------------""" 
@@ -87,17 +116,18 @@ np.random.seed(23)
 
 """
 xgb_params = {
-    'eta': 0.01,
+    'eta': 0.005,
     'max_depth': 2,
-    'subsample': 0.9,
-    'reg_alpha': 5,
-    'colsample_bytree':0.7,
+    'subsample': 0.93,
+#    'colsample_bytree':0.7,
     'objective': 'reg:linear',
     'eval_metric': 'rmse',
-    'silent': 1
-    'base_score': 100.66931812782134
+    'silent': 1,
+    'base_score': 0
 }
 """
+
+# binary columns
 
 def myCV(xgb_params):
     numFolds = 5
@@ -111,7 +141,7 @@ def myCV(xgb_params):
         # split data
         X_train, X_test = TRAIN.iloc[train_ind], TRAIN.iloc[test_ind]
         y_train, y_test = res.iloc[train_ind], res.iloc[test_ind]
-    
+        
         # fit xgboost
         dtrain = xgb.DMatrix(X_train, y_train, feature_names=X_train.columns.values)
         dtest = xgb.DMatrix(X_test,y_test)

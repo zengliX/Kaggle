@@ -17,10 +17,13 @@ from sklearn.linear_model import LinearRegression
 import itertools
 import pickle
 import time
+import mca
+from sklearn.decomposition import PCA, FastICA
+
 
 # command line inputs
-#input_fd = '../data/cleaned2'
-#output_fd = './temp'
+#input_fd = '../data/cleaned3'
+#output_fd = './0705/'
 input_fd=sys.argv[1] 
 output_fd = sys.argv[2]
 
@@ -37,6 +40,7 @@ TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
 y = TRAIN.y
 del TRAIN['y']
 del TEST['y']
+
 
 
 """----------------------
@@ -57,6 +61,36 @@ TRAIN.drop(X0_cols,axis=1,inplace=True)
 TEST.drop(X0_cols,axis=1,inplace=True)
 
 
+
+
+# Append decomposition components to datasets
+bin_cols = [x for x in TRAIN.columns if not '_' in x]
+temp = pd.concat([TRAIN,TEST],axis=0)[bin_cols]
+
+ncomp=5
+
+# MCA
+mca_out = mca.mca(temp,ncols=ncomp)
+mca_mat = pd.DataFrame(mca_out.fs_r_sup(temp,ncomp),index=temp.index)
+
+
+# ICA
+ica = FastICA(n_components=ncomp, random_state=420)
+ica_mat =pd.DataFrame(ica.fit_transform(temp),index=temp.index)
+
+
+# append
+for i in range(min(ncomp,mca_mat.shape[1])):
+    TRAIN['mca_' + str(i)] = mca_mat.loc[TRAIN.index,i]
+    TEST['mca_' + str(i)] = mca_mat.loc[TEST.index,i]
+
+for i in range(min(ncomp,ica_mat.shape[1])):
+    TRAIN['ica_' + str(i)] = ica_mat.loc[TRAIN.index, i]
+    TEST['ica_' + str(i)] = ica_mat.loc[TEST.index, i]
+
+
+
+
 """----------------------
 CROSS VALIDATION IN TRAINING
 ----------------------""" 
@@ -67,7 +101,6 @@ def myCV(xgb_params,mytrain):
     numFolds = 5
     kf = KFold(n_splits= numFolds ,shuffle = True)
     kf.get_n_splits(mytrain)
-
     out = {'train_r2':[],'test_r2':[]}
     ct = 1
     for train_ind, test_ind in kf.split(mytrain):
@@ -111,8 +144,8 @@ def step_wise(params,keep):
     # step wise selection
     pool = keep.copy()
     old_r2 = 0
-    new_r2 = 0.60236
-    cur_cols = []
+    new_r2 = 0.60
+    cur_cols = [x for x in TRAIN.columns if ('mca' in x) or ('ica' in x)]
     while pool:
         old_r2 = new_r2
         out = onestep(params,cur_cols,pool)
@@ -127,13 +160,16 @@ def step_wise(params,keep):
 
 
 
-final_params = {'colsample_bytree': 0.3,
- 'eta': 0.05,
- 'eval_metric': 'rmse',
- 'max_depth': 2,
- 'objective': 'reg:linear',
- 'silent': 1,
- 'subsample': 1}
+final_params = {
+    'eta': 0.005,
+    'max_depth': 2,
+    'subsample': 0.93,
+#    'colsample_bytree':0.7,
+    'objective': 'reg:linear',
+    'eval_metric': 'rmse',
+    'silent': 1,
+    'base_score': 0
+}
 
 keep =['X47','X5','X127','X267','X383','X1','X351','X240','X8','X51','X152','X104','X241','X163','X19','X132','X345']
 
@@ -188,7 +224,11 @@ y_pred = y_linear_test + model2.predict(dtest)
 
 output = pd.DataFrame({'y': y_pred},index=TEST.index)
 output.loc[[289,624,5816,6585,7420,7805],:] += 100.63 # set to mean
-output.to_csv(output_fd+'/XGB_withLinear_step.csv',index_label='ID')
+
+# add probe
+probe_out = pd.DataFrame.from_csv('../probing/probe_out.csv')
+output.loc[probe_out.index,'y'] = probe_out['yValue']
+output.to_csv(output_fd+'/XGB_withLinear_step_icamca.csv',index_label='ID')
 
 
 fig, ax = plt.subplots(figsize=(12,30))
