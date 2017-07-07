@@ -17,7 +17,7 @@ import pickle
 import time
 
 # command line inputs
-#input_fd = '../data/cleaned2'
+#input_fd = '../data/cleaned'
 #output_fd = './temp'
 input_fd=sys.argv[1] 
 output_fd = sys.argv[2]
@@ -31,17 +31,20 @@ LOAD DATA
 ----------------------""" 
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
+TRAIN.drop(TRAIN.index[TRAIN['y']>250],inplace=True)
+
 
 y = TRAIN.y
 del TRAIN['y']
 del TEST['y']
 
 
+"""
 sele_cols = list(filter(lambda x: ('X0'+'_' in x), TRAIN.columns))
 #X314 = list(filter(lambda x: '314'in x, TRAIN.columns))
 TRAIN = TRAIN[sele_cols]
 TEST= TEST[sele_cols]
-
+"""
 
 """----------------------
 CROSS VALIDATION IN TRAINING
@@ -49,6 +52,33 @@ CROSS VALIDATION IN TRAINING
 np.random.seed(23)
 
 
+
+# use median
+def myCV2():
+    numFolds = 5
+    kf = KFold(n_splits= numFolds ,shuffle = True)
+    kf.get_n_splits(TRAIN)
+
+    out = {'train_r2':[],'test_r2':[]}
+    ct = 1
+    for train_ind, test_ind in kf.split(TRAIN):
+        print('calculating fold:',ct)
+        # split data
+        X_train, X_test = TRAIN.iloc[train_ind], TRAIN.iloc[test_ind]
+        y_train, y_test = y.iloc[train_ind], y.iloc[test_ind]
+    
+        # fit median
+        meds = X_train.join(y_train).groupby('X0')['y'].median()
+        pred_train = meds[X_train['X0']].values
+        pred_test = meds[X_test['X0']].values
+        r2_score(y_train,pred_train)
+        loc = np.logical_not(np.isnan(pred_test))
+        out['test_r2'].append(r2_score(y_test[loc],pred_test[loc]))
+    out['test_r2_mean']=np.mean(out['test_r2'])
+    return out
+
+
+# use mean
 def myCV():
     numFolds = 5
     kf = KFold(n_splits= numFolds ,shuffle = True)

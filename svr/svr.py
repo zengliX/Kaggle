@@ -13,7 +13,8 @@ from sklearn.model_selection import KFold
 from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
 import itertools
-
+import time
+import pickle
 # command line inputs
 # input_fd = '../data/cleaned3'
 # output_fd = './svr_all'
@@ -66,6 +67,14 @@ res = y - y_linear_train # residual
 TRAIN.drop(X0_cols,axis=1,inplace=True)
 TEST.drop(X0_cols,axis=1,inplace=True)
 
+# select columns
+keep =['X47','X5','X127','X267','X383','X1','X351','X240','X8','X51','X152','X104','X241','X163','X19','X132','X345']
+def f(x):
+    return any([(z == x) or (z+'_' in x) for z in keep ])
+tests_cols = [x for x in TRAIN.columns if f(x)]
+
+TRAIN = TRAIN[tests_cols]
+TEST = TEST[tests_cols]
 
 """----------------------
 SVR CV
@@ -88,11 +97,13 @@ def param_gen(kernel,gammalist,Clist,eps):
 
 Nfeature = TRAIN.shape[1]
 param_list = param_gen(kernel = ['rbf 0','poly 2','sigmoid 0'],gammalist=[0.5/Nfeature,1/Nfeature,5/Nfeature],\
-                       Clist=[0.1,1,10],eps=[0.01,0.1,0.3])
+                       Clist=np.linspace(0.1,3,10),eps=np.linspace(0.01,0.1,3))
+#param_list = param_gen(kernel = ['rbf 0'],gammalist=[0.5/Nfeature],Clist=[0.1],eps=[0.1,0.2])
+
 
 p = param_list[-1]
 # cross validation
-def myCV():
+def myCV(p):
     numFolds = 5
     kf = KFold(n_splits= numFolds ,shuffle = True)
     kf.get_n_splits(TRAIN)
@@ -109,8 +120,46 @@ def myCV():
         svr_fit = SVR(kernel=p['kernel'],degree=p['degree'],gamma=p['gamma'],coef0=1,tol=0.00001,C=p['C'],epsilon=p['epsilon'])
         svr_fit.fit(X_train,y_train)
         pred_train = svr_fit.predict(X_train)
-        plt.scatter(pred_train,y_train)
-        svr_fit.score(X_train,y_train)        
+        pred_test = svr_fit.predict(X_test)
+        out['train_r2'].append(r2_score(y.iloc[train_ind],pred_train + y_linear_train[train_ind]))
+        out['test_r2'].append(r2_score(y.iloc[test_ind],pred_test + y_linear_train[test_ind]))
+        ct += 1
     out['train_r2_mean']=np.mean(out['train_r2'])
     out['test_r2_mean']=np.mean(out['test_r2'])
     return out
+
+# loop through param_list
+ct= 0
+cv_out = []
+t0 = time.time()
+for p in param_list:
+    print('------------------------------------------------------\n')
+    print("working on parameters:",p,'\n')
+    print("index:",ct,'\n')
+    cur_cv = myCV(p)
+    cv_out.append({'pars':p,'fit':cur_cv})
+    ct+=1
+    
+    # report
+    print("current cv results:",cur_cv)
+    speed = (time.time()-t0)/ct
+    print('time remaining:',(len(param_list)-ct)*speed/60,'mins\n')
+    print('------------------------------------------------------')
+    
+    if ct%5==0:
+        temp = [x['fit']['test_r2_mean'] for x in cv_out]
+        print('Best test_r2_mean so far:',max(temp))
+
+# save cv_results
+cv_file = output_fd+'/cv_out.pckl'
+f = open(cv_file,'wb')
+pickle.dump(cv_out,f)
+f.close()
+print('------------------------------------------------------')
+print('mean-test-r2:',[x['fit']['test_r2_mean'] for x in cv_out])
+print('------------------------------------------------------')
+
+
+"""----------------------
+FINAL MODEL
+----------------------""" 

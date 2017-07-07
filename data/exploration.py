@@ -10,6 +10,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LinearRegression
 
 #Disable pandas warnings
 pd.options.mode.chained_assignment = None
@@ -25,9 +26,18 @@ train=pd.DataFrame.from_csv("./raw/train.csv")
 test = pd.DataFrame.from_csv('./raw/test.csv')
 train.drop(train.index[train['y']>250],inplace=True)
 
+
+
 """----------------------
 EXPLORATION without y
 ----------------------""" 
+
+# duplicated rows
+dup_rows = train.iloc[:,1:-1].duplicated(keep=False)
+temp = train[dup_rows].sort_values(by=['X0','X1','X2','X3','X4','X5','X6','X8'])
+
+# pivot_table
+train.groupby(['X0','X1'])['y'].mean()
 # type count
 sns.countplot(train.dtypes)
 train.dtypes.value_counts()
@@ -80,7 +90,7 @@ show_var('X5')
 show_var('X6')
 show_var('X8')
 
-"""
+
 # separate X0 into 4 groups
 var_name= 'X0'
 temp = train[var_name].to_frame().join(train['y'])
@@ -104,7 +114,7 @@ g.map(sns.distplot,'y')
 intest_only = np.setdiff1d(test['X0'].unique(),train['X0'].unique())
 pd.Series(map(lambda x: np.sum(test['X0']==x),intest_only),index= intest_only)
     # total 6 samples have new X0
-"""
+
 
 """
 # X0 interaction with X1-X8
@@ -119,6 +129,158 @@ def new_show_var(var_name):
 new_show_var('X5')
 """
 
+# X5 vs ID
+train['ID']=train.index
+sns.boxplot(x='X5',y='ID',data=train)
+
+# X0 vs X10-X385
+"""
+['a',
+ 'aa',
+ 'ab',
+ 'ac',
+ 'ad',
+ 'af',
+ 'ai',
+ 'aj',
+ 'ak',
+ 'al',
+ 'am',
+ 'ao',
+ 'ap',
+ 'aq',
+ 'as',
+ 'at',
+ 'au',
+ 'aw',
+ 'ax',
+ 'ay',
+ 'az',
+ 'b',
+ 'ba',
+ 'bc',
+ 'c',
+ 'd',
+ 'e',
+ 'f',
+ 'g',
+ 'h',
+ 'i',
+ 'j',
+ 'k',
+ 'l',
+ 'm',
+ 'n',
+ 'o',
+ 'q',
+ 'r',
+ 's',
+ 't',
+ 'u',
+ 'v',
+ 'w',
+ 'x',
+ 'y',
+ 'z']
+"""
+
+train2 = pd.DataFrame.from_csv("./cleaned2/train.csv")
+del train2['y']
+train2['y'] = train['y']
+train2['X0'] = train['X0']
+
+train2.sort_values(by=['X0','y'],inplace=True)
+
+def show_x0_group(v):
+    plt.figure(figsize=(15,12))
+    sns.heatmap(train2.loc[train2['X0']==v,out.index],xticklabels=False, yticklabels=True)
+    plt.show()
+    train2.loc[train2['X0']=='ak',['y','res']]
+    #sns.heatmap(train2.loc[train2['X0']=='ak',train2.columns[:-2]],xticklabels=False, yticklabels=True)
+    sns.distplot(train2.loc[train2['X0']==v,'res'],bins=40)
+    plt.show()
+    print(train2.loc[train2['X0']==v,['X0','y','res'] ])
+
+show_x0_group('ad')
+
+plt.figure(figsize=(15,12))
+sns.heatmap(train.loc[train['new_group']=='C',train.columns[9:-2]],xticklabels=False, yticklabels=False)
+sns.distplot(train.loc[train['new_group']=='C','y'])
+
+# add residual
+X0_cols = list(filter(lambda x: 'X0'+'_' in x, train2.columns))
+linear_fit = LinearRegression(fit_intercept=False)
+linear_fit.fit(train2[X0_cols],train2['y'])
+y_linear_train = linear_fit.predict(train2[X0_cols]) # linear pred on train
+res = train2['y'] - y_linear_train # residual
+train2['res'] = res
+train2.sort_values(by=['res'],inplace=True)
+      
+# mean for each binary col
+bin_cols = [x for x in train2.columns if not '_' in x][:-3]
+def f(x):
+    return np.mean(res[x==1])
+
+out = train2[bin_cols].apply(f)
+out.sort_values(inplace=True)
+plt.scatter(range(len(out)),out.values)
+
+
+
+# distribution of each binary col
+def X_distr(v):
+    n = sum(train[v])
+    print('number of 1s:',n)
+    sns.distplot(train2.loc[train2[v]==1,'res'])
+    plt.show()
+    if n < 500:
+        sns.heatmap(train2.loc[train2[v]==1,out.index])
+        plt.show()
+    print(train2.loc[train2[v]==1,['X0','res','y']])
+
+X_distr('X135')
+
+
+# correlation between binary cols
+corr_mat = train2[out.index].corr()
+sns.heatmap(corr_mat)
+
+# cluster by binary values
+from sklearn.cluster import KMeans
+
+temp = train2.groupby('X0')
+sort_y = temp.mean()['y'].sort_values()
+x0_centers = temp.mean().loc[sort_y.index,bin_cols]
+plt.figure(figsize=(15,12))
+sns.heatmap(x0_centers)
+
+km = KMeans(n_clusters = x0_centers.shape[0],init = x0_centers,max_iter=10).fit(train2[bin_cols])
+new_x0 = pd.Series(x0_centers.index[km.labels_],index=train2.index)
+new_x0.rename('new_x0',inplace=True)
+
+# new x0 from clustering results
+def show_x0_group2(v):
+    plt.figure(figsize=(15,12))
+    sns.heatmap(train2.loc[new_x0==v,out.index],xticklabels=False, yticklabels=True)
+    plt.show()
+    sns.distplot(train2.loc[new_x0==v,'res'],bins=40)
+    plt.show()
+    print(train2.loc[new_x0==v,['X0','y'] ])
+
+show_x0_group2('ay')
+
+def check_new_group(v):
+    temp = train2.loc[train2.X0==v,'y']
+    inds = temp[temp > temp.mean() + 1.96*temp.std()].index
+    print(pd.concat([train2.loc[inds,'X0'],new_x0[inds]],axis=1))
+    print('old:')
+    sns.distplot(train2.loc[train2['X0']==v,'y'],bins=40)
+    plt.show()
+    print('new:')
+    sns.distplot(train2.loc[new_x0==v,'y'],bins=40)
+    plt.show()
+    
+check_new_group('ay')
 """----------------------
 EXPLORATION with y
 ----------------------""" 

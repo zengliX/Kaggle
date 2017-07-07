@@ -19,7 +19,7 @@ import pickle
 import time
 
 # command line inputs
-#input_fd = '../data/cleaned2'
+#input_fd = '../data/cleaned3'
 #output_fd = './temp'
 input_fd=sys.argv[1] 
 output_fd = sys.argv[2]
@@ -76,7 +76,7 @@ def param_gen(eta,max_depth,sub,col_sub):
     return out
 
 #params_list = param_gen(ntree=[500,400,600],eta=[.05,.02,.1],max_depth=[2,3,4,5,6],sub=[1,.8,.9])
-params_list = param_gen(eta=[.05,.01,.005],max_depth=[2,3,4,5],sub=[1,.8,.9],col_sub=[.3,.6,1])
+params_list = param_gen(eta=[.05,.01,.005],max_depth=[2,3,4],sub=[1,.8,.9],col_sub=[.3,.6,1])
 
 #params_list = param_gen(eta=[.01],max_depth=[2,3,4],sub=[1],col_sub=[1])
 
@@ -87,18 +87,20 @@ np.random.seed(23)
 
 """
 xgb_params = {
-    'eta': 0.05,
+    'eta': 0.01,
     'max_depth': 2,
     'subsample': 0.9,
+    'reg_alpha': 5,
     'colsample_bytree':0.7,
     'objective': 'reg:linear',
     'eval_metric': 'rmse',
     'silent': 1
+    'base_score': 100.66931812782134
 }
 """
 
 def myCV(xgb_params):
-    numFolds = 10
+    numFolds = 5
     kf = KFold(n_splits= numFolds ,shuffle = True)
     kf.get_n_splits(TRAIN)
 
