@@ -18,6 +18,7 @@ import warnings
 warnings.filterwarnings('ignore')
 import pandas as pd
 from sklearn.cross_decomposition import PLSRegression
+from scipy.stats import mannwhitneyu
 ########################################
 #### LOAD TRAINING DATA ########################
 ########################################
@@ -35,6 +36,7 @@ EXPLORATION without y
 # duplicated rows
 dup_rows = train.iloc[:,1:-1].duplicated(keep=False)
 temp = train[dup_rows].sort_values(by=['X0','X1','X2','X3','X4','X5','X6','X8'])
+
 
 # pivot_table
 train.groupby(['X0','X1'])['y'].mean()
@@ -184,12 +186,28 @@ sns.boxplot(x='X5',y='ID',data=train)
  'z']
 """
 
-train2 = pd.DataFrame.from_csv("./cleaned2/train.csv")
+
+
+train2 = pd.DataFrame.from_csv("./cleaned3/train.csv")
 del train2['y']
 train2['y'] = train['y']
 train2['X0'] = train['X0']
-
 train2.sort_values(by=['X0','y'],inplace=True)
+
+# add residual
+X0_cols = list(filter(lambda x: 'X0'+'_' in x, train2.columns))
+linear_fit = LinearRegression(fit_intercept=False)
+linear_fit.fit(train2[X0_cols],train2['y'])
+y_linear_train = linear_fit.predict(train2[X0_cols]) # linear pred on train
+res = train2['y'] - y_linear_train # residual
+train2['res'] = res
+train2.sort_values(by=['res'],inplace=True)
+      
+# remove duplicated columns
+bin_cols = [x for x in train2.columns if not '_' in x][:-3]
+temp = train2[bin_cols].T.duplicated()
+train2.drop(temp.index[temp],axis=1,inplace=True)
+
 
 def show_x0_group(v):
     plt.figure(figsize=(15,12))
@@ -207,44 +225,42 @@ plt.figure(figsize=(15,12))
 sns.heatmap(train.loc[train['new_group']=='C',train.columns[9:-2]],xticklabels=False, yticklabels=False)
 sns.distplot(train.loc[train['new_group']=='C','y'])
 
-# add residual
-X0_cols = list(filter(lambda x: 'X0'+'_' in x, train2.columns))
-linear_fit = LinearRegression(fit_intercept=False)
-linear_fit.fit(train2[X0_cols],train2['y'])
-y_linear_train = linear_fit.predict(train2[X0_cols]) # linear pred on train
-res = train2['y'] - y_linear_train # residual
-train2['res'] = res
-train2.sort_values(by=['res'],inplace=True)
-      
+
 # mean for each binary col
 bin_cols = [x for x in train2.columns if not '_' in x][:-3]
 def f(x):
-    return np.mean(res[x==1])
+    out=mannwhitneyu(res[x==1],res[x==0])
+    return out.pvalue
 
 out = train2[bin_cols].apply(f)
 out.sort_values(inplace=True)
+pd.Series(out.index[out<0.01]).to_csv('sele_cols.csv')
 plt.scatter(range(len(out)),out.values)
 
 
 
 # distribution of each binary col
 def X_distr(v):
-    n = sum(train[v])
+    n = sum(train2[v])
     print('number of 1s:',n)
     sns.distplot(train2.loc[train2[v]==1,'res'])
     plt.show()
-    if n < 500:
-        sns.heatmap(train2.loc[train2[v]==1,out.index])
-        plt.show()
-    print(train2.loc[train2[v]==1,['X0','res','y']])
+    sns.distplot(train2.loc[train2[v]==0,'res'])
+    plt.show()
+    print(train2.loc[:,['X0','res','y',v]].groupby(v).mean())
+    print(train2.loc[:,['X0','res','y',v]].groupby(v).size())
 
-X_distr('X135')
+    #if n < 50:
+    #    sns.heatmap(train2.loc[train2[v]==1,out.index])
+    #    plt.show()
+
+X_distr('X314')
 
 
 # correlation between binary cols
 corr_mat = train2[out.index].corr()
 sns.heatmap(corr_mat)
-
+sum((corr_mat>0.95).values.reshape(-1) )
 # cluster by binary values
 from sklearn.cluster import KMeans
 

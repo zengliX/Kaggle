@@ -11,9 +11,12 @@ from sklearn import ensemble
 from matplotlib import pyplot as plt
 from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
+import mca
+from sklearn.decomposition import PCA, FastICA
+
 
 # command line inputs
-# input_fd = '../data/cleaned3'
+#input_fd = '../data/cleaned3'
 # output_fd = './temp'
 _, input_fd, output_fd = sys.argv
 
@@ -31,22 +34,6 @@ y = TRAIN.y
 del TRAIN['y']
 del TEST['y']
 
-"""
-sele_cols = list(filter(lambda x: ('new_group'+'_' in x) or ('X314' in x) \
-                        or ('X3_' in x) or ('X4_' in x) or ('X0_' in x)\
-                        , TRAIN.columns))
-TRAIN = TRAIN[sele_cols]
-TEST= TEST[sele_cols]
-"""
-
-
-"""
-X0_cols = list(filter(lambda x: 'X0'+'_' in x, TRAIN.columns))
-TRAIN.drop(X0_cols,axis=1,inplace=True)
-TEST.drop(X0_cols,axis=1,inplace=True)
-"""
-
-
 """----------------------
 LINEAR MODEL with X0
 ----------------------""" 
@@ -63,6 +50,40 @@ res = y - y_linear_train # residual
 # drop X0 columns
 TRAIN.drop(X0_cols,axis=1,inplace=True)
 TEST.drop(X0_cols,axis=1,inplace=True)
+
+
+# Append decomposition components to datasets
+bin_cols = [x for x in TRAIN.columns if not '_' in x]
+temp = pd.concat([TRAIN,TEST],axis=0)[bin_cols]
+
+ncomp=15
+
+# MCA
+mca_out = mca.mca(temp,ncols=ncomp)
+mca_mat = pd.DataFrame(mca_out.fs_r_sup(temp,ncomp),index=temp.index)
+
+
+# ICA
+ica = FastICA(n_components=ncomp, random_state=420)
+ica_mat =pd.DataFrame(ica.fit_transform(temp),index=temp.index)
+
+
+# append
+for i in range(min(ncomp,mca_mat.shape[1])):
+    TRAIN['mca_' + str(i)] = mca_mat.loc[TRAIN.index,i]
+    TEST['mca_' + str(i)] = mca_mat.loc[TEST.index,i]
+
+for i in range(min(ncomp,ica_mat.shape[1])):
+    TRAIN['ica_' + str(i)] = ica_mat.loc[TRAIN.index, i]
+    TEST['ica_' + str(i)] = ica_mat.loc[TEST.index, i]
+
+
+# remove duplicated columns
+temp = TRAIN[bin_cols].T.duplicated()
+TRAIN.drop(temp.index[temp],axis=1,inplace=True)
+TEST.drop(temp.index[temp],axis=1,inplace=True)
+
+
 
 
 
@@ -87,7 +108,7 @@ def step_wise(keep):
     pool = keep.copy()
     cur_oob = -1
     new_oob = 0
-    cur_cols = []
+    cur_cols = [x for x in TRAIN.columns if ('mca' in x) or ('ica'in x)]
     while pool:
         cur_oob = new_oob
         out = onestep(cur_cols,pool)
@@ -113,9 +134,13 @@ rf_fit = ensemble.RandomForestRegressor(n_estimators = 800, max_features = max(N
 rf_fit.fit(TRAIN.loc[:,out[0]],res)
 pred_train = y_linear_train + rf_fit.predict(TRAIN.loc[:,out[0]])    
 r2_score(y,pred_train)
+
 pred_test = y_linear_test + rf_fit.predict(TEST.loc[:,out[0]])
 pred_test = pd.DataFrame(pred_test,index= TEST.index,columns=['y'])
 pred_test.loc[[289,624,5816,6585,7420,7805],:] = np.mean(y)
 
+# add probe
+probe_out = pd.DataFrame.from_csv('../probing/probe_out.csv')
+pred_test.loc[probe_out.index,'y'] = probe_out['yValue']
 
-pred_test.to_csv(output_fd+'/RF_0704.csv',index_label='ID')
+pred_test.to_csv(output_fd+'/RF_step_res_p_0708.csv',index_label='ID')

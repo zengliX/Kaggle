@@ -23,7 +23,7 @@ from sklearn.decomposition import PCA, FastICA
 
 # command line inputs
 #input_fd = '../data/cleaned3'
-#output_fd = './0705/'
+#output_fd = './0707_ica_mca_only'
 input_fd=sys.argv[1] 
 output_fd = sys.argv[2]
 
@@ -67,7 +67,7 @@ TEST.drop(X0_cols,axis=1,inplace=True)
 bin_cols = [x for x in TRAIN.columns if not '_' in x]
 temp = pd.concat([TRAIN,TEST],axis=0)[bin_cols]
 
-ncomp=5
+ncomp=10
 
 # MCA
 mca_out = mca.mca(temp,ncols=ncomp)
@@ -95,7 +95,6 @@ for i in range(min(ncomp,ica_mat.shape[1])):
 CROSS VALIDATION IN TRAINING
 ----------------------""" 
 np.random.seed(23)
-
 
 def myCV(xgb_params,mytrain):
     numFolds = 5
@@ -162,20 +161,27 @@ def step_wise(params,keep):
 
 final_params = {
     'eta': 0.005,
-    'max_depth': 2,
+    'max_depth': 3,
     'subsample': 0.93,
-#    'colsample_bytree':0.7,
     'objective': 'reg:linear',
     'eval_metric': 'rmse',
     'silent': 1,
     'base_score': 0
 }
 
+#keep =['X1','X5','X8']
+#bin_cols = pd.Series.from_csv('../data/sele_cols.csv')
+#keep += list(bin_cols)
 keep =['X47','X5','X127','X267','X383','X1','X351','X240','X8','X51','X152','X104','X241','X163','X19','X132','X345']
 
 step_out = step_wise(final_params,keep)
+print(step_out)
+
+#mca_ica= list(filter(lambda x: ('ica' in x) or ('mca' in x) or ('X47' == x), TRAIN.columns ))
+#step_out = [mca_ica,None]
 
 myCV(final_params,TRAIN[step_out[0]])
+
 
 
 

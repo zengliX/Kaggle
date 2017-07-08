@@ -60,11 +60,10 @@ TEST.drop(X0_cols,axis=1,inplace=True)
 
 
 # # Append decomposition components to datasets
-
 bin_cols = [x for x in TRAIN.columns if not '_' in x]
 temp = pd.concat([TRAIN,TEST],axis=0)[bin_cols]
 
-ncomp=5
+ncomp=15
 
 # MCA
 mca_out = mca.mca(temp,ncols=ncomp)
@@ -86,10 +85,16 @@ for i in range(min(ncomp,ica_mat.shape[1])):
     TEST['ica_' + str(i)] = ica_mat.loc[TEST.index, i]
 
 
+# remove duplicated columns
+temp = TRAIN[bin_cols].T.duplicated()
+TRAIN.drop(temp.index[temp],axis=1,inplace=True)
+TEST.drop(temp.index[temp],axis=1,inplace=True)
+
+
+
 """----------------------
 GENERATE PARAMETERS
 ----------------------""" 
-
 def param_gen(eta,max_depth,sub,col_sub):
     out= []
     for e,m,s,cs in itertools.product(eta,max_depth,sub,col_sub):
@@ -100,26 +105,25 @@ def param_gen(eta,max_depth,sub,col_sub):
         'objective': 'reg:linear',
         'eval_metric': 'rmse',
         'colsample_bytree':cs,
+        'base_score': 0,
         'silent': 1}
         out.append(xgb_params)
     return out
 
 #params_list = param_gen(ntree=[500,400,600],eta=[.05,.02,.1],max_depth=[2,3,4,5,6],sub=[1,.8,.9])
-params_list = param_gen(eta=[.05,.01,.005],max_depth=[2,3,4],sub=[1,.8,.9],col_sub=[.3,.6,1])
-
+params_list = param_gen(eta=[.05,.01,.005,.001],max_depth=[2,3,4],sub=[1,.8,.9],col_sub=[.7,.8,.9,1])
 #params_list = param_gen(eta=[.01],max_depth=[2,3,4],sub=[1],col_sub=[1])
 
 """----------------------
 CROSS VALIDATION IN TRAINING
 ----------------------""" 
-np.random.seed(23)
+np.random.seed(12)
 
 """
 xgb_params = {
     'eta': 0.005,
     'max_depth': 2,
     'subsample': 0.93,
-#    'colsample_bytree':0.7,
     'objective': 'reg:linear',
     'eval_metric': 'rmse',
     'silent': 1,
@@ -130,7 +134,7 @@ xgb_params = {
 # binary columns
 
 def myCV(xgb_params):
-    numFolds = 5
+    numFolds = 7
     kf = KFold(n_splits= numFolds ,shuffle = True)
     kf.get_n_splits(TRAIN)
 
@@ -237,15 +241,16 @@ PREDICTION
 ----------------------""" 
 
 # make predictions and save results
-# y_pred = model1.predict(dtest)
-# output = pd.DataFrame({'ID': TEST.index, 'y': y_pred})
-# output.to_csv(output_fd+'/XGB_tuned1.csv',index=False)
 
 y_pred = y_linear_test + model2.predict(dtest)
 
 output = pd.DataFrame({'y': y_pred},index=TEST.index)
 output.loc[[289,624,5816,6585,7420,7805],:] = 100.63 # set to mean
-output.to_csv(output_fd+'/XGB_withLinear_tuned.csv',index_label='ID')
+
+# add probe
+probe_out = pd.DataFrame.from_csv('../probing/probe_out.csv')
+output.loc[probe_out.index,'y'] = probe_out['yValue']
+output.to_csv(output_fd+'/XGB_withLinear_mcaica_tuned.csv',index_label='ID')
 
 
 fig, ax = plt.subplots(figsize=(12,30))
