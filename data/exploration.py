@@ -219,7 +219,7 @@ def show_x0_group(v):
     plt.show()
     print(train2.loc[train2['X0']==v,['X0','y','res'] ])
 
-show_x0_group('ad')
+show_x0_group('g')
 
 plt.figure(figsize=(15,12))
 sns.heatmap(train.loc[train['new_group']=='C',train.columns[9:-2]],xticklabels=False, yticklabels=False)

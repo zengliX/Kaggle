@@ -22,8 +22,8 @@ from sklearn.decomposition import PCA, FastICA
 
 
 # command line inputs
-#input_fd = '../data/cleaned3'
-#output_fd = './0707_ica_mca_only'
+#input_fd = '../data/cleaned4'
+#output_fd = './0708_ica15_mca_cleaned4'
 input_fd=sys.argv[1] 
 output_fd = sys.argv[2]
 
@@ -144,7 +144,7 @@ def step_wise(params,keep):
     pool = keep.copy()
     old_r2 = 0
     new_r2 = 0.60
-    cur_cols = [x for x in TRAIN.columns if ('mca' in x) or ('ica' in x)]
+    cur_cols = [x for x in TRAIN.columns if ('mca' in x) or ('ica' in x) or ('center' in x)]
     while pool:
         old_r2 = new_r2
         out = onestep(params,cur_cols,pool)
@@ -161,7 +161,7 @@ def step_wise(params,keep):
 
 final_params = {
     'eta': 0.005,
-    'max_depth': 3,
+    'max_depth': 2,
     'subsample': 0.93,
     'objective': 'reg:linear',
     'eval_metric': 'rmse',
@@ -172,7 +172,8 @@ final_params = {
 #keep =['X1','X5','X8']
 #bin_cols = pd.Series.from_csv('../data/sele_cols.csv')
 #keep += list(bin_cols)
-keep =['X47','X5','X127','X267','X383','X1','X351','X240','X8','X51','X152','X104','X241','X163','X19','X132','X345']
+#keep =['X47','X5','X127','X267','X383','X1','X351','X240','X8','X51','X152','X104','X241','X163','X19','X132','X345']
+keep =['X5','X8','X1','X47','X127']
 
 step_out = step_wise(final_params,keep)
 print(step_out)
