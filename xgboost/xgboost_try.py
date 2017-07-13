@@ -22,7 +22,7 @@ from sklearn.decomposition import PCA, FastICA
 
 # command line inputs
 # input_fd = '../data/cleaned3'
-# output_fd = './0709_ica10_mca_lowcorr'
+# output_fd = './randsearch_mcaica0710'
 input_fd=sys.argv[1] 
 output_fd = sys.argv[2]
 

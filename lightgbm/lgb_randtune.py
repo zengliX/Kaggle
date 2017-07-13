@@ -20,7 +20,7 @@ from sklearn.model_selection import GridSearchCV
 
 # command line inputs
 #input_fd = '../data/cleaned3'
-#output_fd = './0710_ica15_mca_tune'
+#output_fd = './0710_ica15_mca_randtune1000'
 input_fd=sys.argv[1] 
 output_fd = sys.argv[2]
 
@@ -102,7 +102,8 @@ param_dist = {
     'feature_fraction': np.linspace(0.85,1,5),
     'bagging_fraction': np.linspace(0.85,1,5),
     'learning_rate': np.linspace(0.001,0.01,5),                             
-    'lambda_l1': np.linspace(0,100,10)
+    'lambda_l1': np.linspace(0,100,10),
+    'early_stopping_rounds': [30]
 }
 
 """
@@ -119,19 +120,24 @@ param_dist = {
 
 lgb_model = lgb.LGBMRegressor()
 kfold = KFold(n_splits=5, shuffle=True, random_state=12)
-t0=time.time()
-rgs = RandomizedSearchCV(lgb_model, param_dist, n_iter=20,n_jobs = 2,
-                         cv = kfold,verbose=1)  
+rgs = RandomizedSearchCV(lgb_model, param_dist, n_iter=1000,n_jobs = 1,
+                         cv = kfold,verbose=2)  
 rgs.fit(TRAIN, res)  
-time.time()-t0
 print(rgs.best_score_ )
 
 final_params = rgs.best_params_
+print(final_params)
+
+# save cv_results
+cv_file = output_fd+'/cv_out.pckl'
+f = open(cv_file,'wb')
+pickle.dump(rgs,f)
+f.close()
 
 """----------------------
 CROSS VALIDATION with the best
 ----------------------""" 
-np.random.seed(12)
+np.random.seed(1234)
 
 """
 lgb_params = {
@@ -175,8 +181,6 @@ def myCV(lgb_params):
     return out
 
 cur_cv = myCV(final_params)
-print(cur_cv)
-
 # report
 print('cv of best: '+ str(cur_cv) + '\n')
 
@@ -195,8 +199,6 @@ model2 = lgb.train(final_params,
 
 
 # score
-# r2_train1 = r2_score(dtrain.get_label(), model1.predict(dtrain))
-# print("R2 on training:",r2_train1,'\n')
 r2_train2 = r2_score(y, y_linear_train + model2.predict(TRAIN))
 print('------------------------------------------------------')
 print("R2 on training:",r2_train2,'\n')
@@ -217,7 +219,7 @@ probe_out = pd.DataFrame.from_csv('../probing/probe_out.csv')
 output.loc[probe_out.index,'y'] = probe_out['yValue']
 output.to_csv(output_fd+'/LGB_withLinear_mcaica_randtuned.csv',index_label='ID')
 
-imp = pd.Series(model2.feature_importance(),index=model2.feature_name())
+imp = pd.Series(model2.feature_importance(),index=TRAIN.columns)
 imp.sort_values(ascending=False,inplace=True)
 imp.to_csv(output_fd+'/importance.csv',index_label='feature')
 
