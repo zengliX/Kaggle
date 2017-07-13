@@ -16,17 +16,15 @@ import itertools
 import time
 import pickle
 # command line inputs
-# input_fd = '../data/cleaned3'
-# output_fd = './svr_all'
 _, input_fd, output_fd = sys.argv
 
 if not os.path.exists(output_fd):
     os.makedirs(output_fd)
-    
+
 
 """----------------------
 LOAD DATA
-----------------------""" 
+----------------------"""
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
 
@@ -52,12 +50,12 @@ TEST.drop(X0_cols,axis=1,inplace=True)
 
 """----------------------
 LINEAR MODEL with X0
-----------------------""" 
+----------------------"""
 X0_cols = list(filter(lambda x: 'X0'+'_' in x, TRAIN.columns))
 
 linear_fit = LinearRegression(fit_intercept=False)
 linear_fit.fit(TRAIN[X0_cols],y)
-SCORE0  =linear_fit.score(TRAIN[X0_cols],y)        
+SCORE0  =linear_fit.score(TRAIN[X0_cols],y)
 y_linear_train = linear_fit.predict(TRAIN[X0_cols]) # linear pred on train
 y_linear_test = linear_fit.predict(TEST[X0_cols]) # linear pred on test
 res = y - y_linear_train # residual
@@ -78,7 +76,7 @@ TEST = TEST[tests_cols]
 
 """----------------------
 SVR CV
-----------------------""" 
+----------------------"""
 
 # generate parameter
 def param_gen(kernel,gammalist,Clist,eps):
@@ -115,7 +113,7 @@ def myCV(p):
         # split data
         X_train, X_test = TRAIN.iloc[train_ind], TRAIN.iloc[test_ind]
         y_train, y_test = res.iloc[train_ind], res.iloc[test_ind]
-        
+
         # fit svr
         svr_fit = SVR(kernel=p['kernel'],degree=p['degree'],gamma=p['gamma'],coef0=1,tol=0.00001,C=p['C'],epsilon=p['epsilon'])
         svr_fit.fit(X_train,y_train)
@@ -139,13 +137,13 @@ for p in param_list:
     cur_cv = myCV(p)
     cv_out.append({'pars':p,'fit':cur_cv})
     ct+=1
-    
+
     # report
     print("current cv results:",cur_cv)
     speed = (time.time()-t0)/ct
     print('time remaining:',(len(param_list)-ct)*speed/60,'mins\n')
     print('------------------------------------------------------')
-    
+
     if ct%5==0:
         temp = [x['fit']['test_r2_mean'] for x in cv_out]
         print('Best test_r2_mean so far:',max(temp))
@@ -162,4 +160,4 @@ print('------------------------------------------------------')
 
 """----------------------
 FINAL MODEL
-----------------------""" 
+----------------------"""

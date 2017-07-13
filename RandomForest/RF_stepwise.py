@@ -16,17 +16,15 @@ from sklearn.decomposition import PCA, FastICA
 
 
 # command line inputs
-#input_fd = '../data/cleaned3'
-# output_fd = './temp'
 _, input_fd, output_fd = sys.argv
 
 if not os.path.exists(output_fd):
     os.makedirs(output_fd)
-    
+
 
 """----------------------
 LOAD DATA
-----------------------""" 
+----------------------"""
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
 
@@ -36,12 +34,12 @@ del TEST['y']
 
 """----------------------
 LINEAR MODEL with X0
-----------------------""" 
+----------------------"""
 X0_cols = list(filter(lambda x: 'X0'+'_' in x, TRAIN.columns))
 
 linear_fit = LinearRegression(fit_intercept=False)
 linear_fit.fit(TRAIN[X0_cols],y)
-linear_fit.score(TRAIN[X0_cols],y)        
+linear_fit.score(TRAIN[X0_cols],y)
 y_linear_train = linear_fit.predict(TRAIN[X0_cols]) # linear pred on train
 y_linear_test = linear_fit.predict(TEST[X0_cols]) # linear pred on test
 res = y - y_linear_train # residual
@@ -89,7 +87,7 @@ TEST.drop(temp.index[temp],axis=1,inplace=True)
 
 """----------------------
 RF step-wise selectino
-----------------------""" 
+----------------------"""
 def onestep(cur_cols,pool):
     out=[]
     print('variables in pool:',pool)
@@ -123,16 +121,16 @@ def step_wise(keep):
 
 keep =['X47','X5','X127','X267','X383','X1','X351','X240','X8','X51','X152','X104','X241','X163','X19','X132','X345']
 # save model for each group
-out = step_wise(keep)    
-    
+out = step_wise(keep)
+
 """----------------------
 GENERATE PREDICTIONS
-----------------------""" 
+----------------------"""
 Nfeature=len(out[0])
 rf_fit = ensemble.RandomForestRegressor(n_estimators = 800, max_features = max(Nfeature//2,1), verbose=0,n_jobs=2,\
                                         oob_score=True,max_depth=3)
 rf_fit.fit(TRAIN.loc[:,out[0]],res)
-pred_train = y_linear_train + rf_fit.predict(TRAIN.loc[:,out[0]])    
+pred_train = y_linear_train + rf_fit.predict(TRAIN.loc[:,out[0]])
 r2_score(y,pred_train)
 
 pred_test = y_linear_test + rf_fit.predict(TEST.loc[:,out[0]])

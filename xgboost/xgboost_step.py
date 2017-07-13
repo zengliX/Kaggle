@@ -22,9 +22,7 @@ from sklearn.decomposition import PCA, FastICA
 
 
 # command line inputs
-#input_fd = '../data/cleaned4'
-#output_fd = './0708_ica15_mca_cleaned4'
-input_fd=sys.argv[1] 
+input_fd=sys.argv[1]
 output_fd = sys.argv[2]
 
 if not os.path.exists(output_fd):
@@ -33,7 +31,7 @@ if not os.path.exists(output_fd):
 
 """----------------------
 LOAD DATA
-----------------------""" 
+----------------------"""
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
 
@@ -45,12 +43,12 @@ del TEST['y']
 
 """----------------------
 LINEAR MODEL with X0
-----------------------""" 
+----------------------"""
 X0_cols = list(filter(lambda x: 'X0'+'_' in x, TRAIN.columns))
 
 linear_fit = LinearRegression(fit_intercept=False)
 linear_fit.fit(TRAIN[X0_cols],y)
-cur_r2 = linear_fit.score(TRAIN[X0_cols],y)        
+cur_r2 = linear_fit.score(TRAIN[X0_cols],y)
 y_linear_train = linear_fit.predict(TRAIN[X0_cols]) # linear pred on train
 y_linear_test = linear_fit.predict(TEST[X0_cols]) # linear pred on test
 res = y - y_linear_train # residual
@@ -93,7 +91,7 @@ for i in range(min(ncomp,ica_mat.shape[1])):
 
 """----------------------
 CROSS VALIDATION IN TRAINING
-----------------------""" 
+----------------------"""
 np.random.seed(23)
 
 def myCV(xgb_params,mytrain):
@@ -107,15 +105,15 @@ def myCV(xgb_params,mytrain):
         # split data
         X_train, X_test = mytrain.iloc[train_ind], mytrain.iloc[test_ind]
         y_train, y_test = res.iloc[train_ind], res.iloc[test_ind]
-    
+
         # fit xgboost
         dtrain = xgb.DMatrix(X_train, y_train, feature_names=X_train.columns.values)
         dtest = xgb.DMatrix(X_test,y_test)
-        cv_result = xgb.cv(xgb_params, 
-                           dtrain, 
+        cv_result = xgb.cv(xgb_params,
+                           dtrain,
                            num_boost_round=3000, # increase to have better results (~700)
                            early_stopping_rounds=40,
-                           verbose_eval=False, 
+                           verbose_eval=False,
                            show_stdv=False
                            )
         niter = cv_result.shape[0]
@@ -169,17 +167,10 @@ final_params = {
     'base_score': 0
 }
 
-#keep =['X1','X5','X8']
-#bin_cols = pd.Series.from_csv('../data/sele_cols.csv')
-#keep += list(bin_cols)
-#keep =['X47','X5','X127','X267','X383','X1','X351','X240','X8','X51','X152','X104','X241','X163','X19','X132','X345']
 keep =['X5','X8','X1','X47','X127']
 
 step_out = step_wise(final_params,keep)
 print(step_out)
-
-#mca_ica= list(filter(lambda x: ('ica' in x) or ('mca' in x) or ('X47' == x), TRAIN.columns ))
-#step_out = [mca_ica,None]
 
 myCV(final_params,TRAIN[step_out[0]])
 
@@ -188,7 +179,7 @@ myCV(final_params,TRAIN[step_out[0]])
 
 """----------------------
 FINAL MODEL
-----------------------""" 
+----------------------"""
 
 # form DMatrices for xgb training
 dtrain = xgb.DMatrix(TRAIN[step_out[0]], res, feature_names=step_out[0])
@@ -196,22 +187,19 @@ dtest = xgb.DMatrix(TEST[step_out[0]])
 
 
 # xgb, cross-validation
-cv_result = xgb.cv(final_params, 
-                   dtrain, 
+cv_result = xgb.cv(final_params,
+                   dtrain,
                    num_boost_round=3000, # increase to have better results (~700)
                    early_stopping_rounds=20,
-                   verbose_eval=50, 
+                   verbose_eval=50,
                    show_stdv=False
                   )
 niter = cv_result.shape[0]
 
 # train model
-# model1 = xgb.train(dict(final_params, silent=0), dtrain, num_boost_round=niter_1sd)
 model2 = xgb.train(dict(final_params, silent=0), dtrain, num_boost_round=niter)
 
 # score
-# r2_train1 = r2_score(dtrain.get_label(), model1.predict(dtrain))
-# print("R2 on training:",r2_train1,'\n')
 r2_train2 = r2_score(y, y_linear_train + model2.predict(dtrain))
 print('------------------------------------------------------')
 print("R2 on training:",r2_train2,'\n')
@@ -220,13 +208,9 @@ print('------------------------------------------------------')
 
 """----------------------
 PREDICTION
-----------------------""" 
+----------------------"""
 
 # make predictions and save results
-# y_pred = model1.predict(dtest)
-# output = pd.DataFrame({'ID': TEST.index, 'y': y_pred})
-# output.to_csv(output_fd+'/XGB_tuned1.csv',index=False)
-
 y_pred = y_linear_test + model2.predict(dtest)
 
 output = pd.DataFrame({'y': y_pred},index=TEST.index)
@@ -241,5 +225,3 @@ output.to_csv(output_fd+'/XGB_withLinear_step_icamca.csv',index_label='ID')
 fig, ax = plt.subplots(figsize=(12,30))
 xgb.plot_importance(model2,height=0.8, ax=ax)
 fig.savefig(output_fd+'/imp.pdf')
-
-

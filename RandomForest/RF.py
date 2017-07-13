@@ -11,17 +11,15 @@ from sklearn import ensemble
 from matplotlib import pyplot as plt
 
 # command line inputs
-# input_fd = '../data/cleaned2'
-# output_fd = './cleaned2_first8'
 _, input_fd, output_fd = sys.argv
 
 if not os.path.exists(output_fd):
     os.makedirs(output_fd)
-    
+
 
 """----------------------
 LOAD DATA
-----------------------""" 
+----------------------"""
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
 
@@ -55,7 +53,7 @@ TEST = TEST.loc[:,exp_keep]
 
 """----------------------
 RF
-----------------------""" 
+----------------------"""
 Nfeature = TRAIN.shape[1]
 rf_fit = ensemble.RandomForestRegressor(n_estimators = 800, max_features = Nfeature//2, verbose=1,n_jobs=2,\
                                         oob_score=True,max_depth=5)
@@ -80,7 +78,7 @@ g.close()
 
 """----------------------
 GENERATE PREDICTIONS
-----------------------""" 
+----------------------"""
 pred =rf_fit.predict(TEST)
 pred = pd.DataFrame(pred,index = TEST.index,columns=['y'])
 pred.to_csv(output_fd+'/RF_0702.csv',index_label='ID')

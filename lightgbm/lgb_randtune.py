@@ -19,9 +19,7 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import GridSearchCV
 
 # command line inputs
-#input_fd = '../data/cleaned3'
-#output_fd = './0710_ica15_mca_randtune1000'
-input_fd=sys.argv[1] 
+input_fd=sys.argv[1]
 output_fd = sys.argv[2]
 
 if not os.path.exists(output_fd):
@@ -30,7 +28,7 @@ if not os.path.exists(output_fd):
 
 """----------------------
 LOAD DATA
-----------------------""" 
+----------------------"""
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
 
@@ -41,12 +39,12 @@ del TEST['y']
 
 """----------------------
 LINEAR MODEL with X0
-----------------------""" 
+----------------------"""
 X0_cols = list(filter(lambda x: 'X0'+'_' in x, TRAIN.columns))
 
 linear_fit = LinearRegression(fit_intercept=False)
 linear_fit.fit(TRAIN[X0_cols],y)
-linear_fit.score(TRAIN[X0_cols],y)        
+linear_fit.score(TRAIN[X0_cols],y)
 y_linear_train = linear_fit.predict(TRAIN[X0_cols]) # linear pred on train
 y_linear_test = linear_fit.predict(TEST[X0_cols]) # linear pred on test
 res = y - y_linear_train # residual
@@ -92,7 +90,7 @@ TEST.drop(temp.index[temp],axis=1,inplace=True)
 
 """----------------------
 RANDOMIZED PARAMETERS
-----------------------""" 
+----------------------"""
 
 param_dist = {
     'task': ['train'],
@@ -101,7 +99,7 @@ param_dist = {
     'num_leaves': np.arange(4,15),
     'feature_fraction': np.linspace(0.85,1,5),
     'bagging_fraction': np.linspace(0.85,1,5),
-    'learning_rate': np.linspace(0.001,0.01,5),                             
+    'learning_rate': np.linspace(0.001,0.01,5),
     'lambda_l1': np.linspace(0,100,10),
     'early_stopping_rounds': [30]
 }
@@ -114,15 +112,15 @@ param_dist = {
     'num_leaves': np.arange(4,7),
     'feature_fraction': np.linspace(0.85,1,2),
     'bagging_fraction': np.linspace(0.85,1,2),
-    'learning_rate': np.linspace(0.001,0.01,2)                                 
+    'learning_rate': np.linspace(0.001,0.01,2)
 }
 """
 
 lgb_model = lgb.LGBMRegressor()
 kfold = KFold(n_splits=5, shuffle=True, random_state=12)
 rgs = RandomizedSearchCV(lgb_model, param_dist, n_iter=1000,n_jobs = 1,
-                         cv = kfold,verbose=2)  
-rgs.fit(TRAIN, res)  
+                         cv = kfold,verbose=2)
+rgs.fit(TRAIN, res)
 print(rgs.best_score_ )
 
 final_params = rgs.best_params_
@@ -136,7 +134,7 @@ f.close()
 
 """----------------------
 CROSS VALIDATION with the best
-----------------------""" 
+----------------------"""
 np.random.seed(1234)
 
 """
@@ -165,7 +163,7 @@ def myCV(lgb_params):
         print('calculating fold:',ct)
         # split data
         X_train, X_test = TRAIN.iloc[train_ind], TRAIN.iloc[test_ind]
-        y_train, y_test = res.iloc[train_ind], res.iloc[test_ind]    
+        y_train, y_test = res.iloc[train_ind], res.iloc[test_ind]
         # fit lgb
         dtrain = lgb.Dataset(X_train, y_train)
         # get best iter
@@ -186,7 +184,7 @@ print('cv of best: '+ str(cur_cv) + '\n')
 
 """----------------------
 FINAL MODEL
-----------------------""" 
+----------------------"""
 
 lgb_train = lgb.Dataset(TRAIN, res)
 cv_results = lgb.cv(final_params, lgb_train, early_stopping_rounds = 40,num_boost_round = 3000, nfold=5)
@@ -206,7 +204,7 @@ print('------------------------------------------------------')
 
 """----------------------
 PREDICTION
-----------------------""" 
+----------------------"""
 
 # make predictions and save results
 
@@ -222,6 +220,3 @@ output.to_csv(output_fd+'/LGB_withLinear_mcaica_randtuned.csv',index_label='ID')
 imp = pd.Series(model2.feature_importance(),index=TRAIN.columns)
 imp.sort_values(ascending=False,inplace=True)
 imp.to_csv(output_fd+'/importance.csv',index_label='feature')
-
-
-

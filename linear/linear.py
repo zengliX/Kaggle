@@ -17,18 +17,16 @@ import pickle
 import time
 
 # command line inputs
-#input_fd = '../data/cleaned'
-#output_fd = './temp'
-input_fd=sys.argv[1] 
+input_fd=sys.argv[1]
 output_fd = sys.argv[2]
 
 if not os.path.exists(output_fd):
     os.makedirs(output_fd)
-    
-    
+
+
 """----------------------
 LOAD DATA
-----------------------""" 
+----------------------"""
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
 TRAIN.drop(TRAIN.index[TRAIN['y']>250],inplace=True)
@@ -48,7 +46,7 @@ TEST= TEST[sele_cols]
 
 """----------------------
 CROSS VALIDATION IN TRAINING
-----------------------""" 
+----------------------"""
 np.random.seed(23)
 
 
@@ -66,7 +64,7 @@ def myCV2():
         # split data
         X_train, X_test = TRAIN.iloc[train_ind], TRAIN.iloc[test_ind]
         y_train, y_test = y.iloc[train_ind], y.iloc[test_ind]
-    
+
         # fit median
         meds = X_train.join(y_train).groupby('X0')['y'].median()
         pred_train = meds[X_train['X0']].values
@@ -91,7 +89,7 @@ def myCV():
         # split data
         X_train, X_test = TRAIN.iloc[train_ind], TRAIN.iloc[test_ind]
         y_train, y_test = y.iloc[train_ind], y.iloc[test_ind]
-    
+
         # fit xgboost
         linear_fit = LinearRegression(fit_intercept=True)
         linear_fit.fit(X_train,y_train)
@@ -107,9 +105,9 @@ myCV()
 
 """----------------------
 PREDICTION
-----------------------""" 
+----------------------"""
 linear_fit = LinearRegression(fit_intercept=True)
 linear_fit.fit(TRAIN,y)
-linear_fit.score(TRAIN,y)        
+linear_fit.score(TRAIN,y)
 pred = linear_fit.predict(TEST)
 pd.DataFrame(pred,columns=['y'],index=TEST.index).to_csv(output_fd+'/linear_X0.csv',index_label='ID')

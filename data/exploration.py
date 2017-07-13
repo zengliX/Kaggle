@@ -4,8 +4,6 @@ author: li zeng
 """
 
 import os
-os.chdir(os.path.realpath(os.curdir))
-
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,6 +17,7 @@ warnings.filterwarnings('ignore')
 import pandas as pd
 from sklearn.cross_decomposition import PLSRegression
 from scipy.stats import mannwhitneyu
+
 ########################################
 #### LOAD TRAINING DATA ########################
 ########################################
@@ -28,10 +27,9 @@ test = pd.DataFrame.from_csv('./raw/test.csv')
 train.drop(train.index[train['y']>250],inplace=True)
 
 
-
 """----------------------
 EXPLORATION without y
-----------------------""" 
+----------------------"""
 
 # duplicated rows
 dup_rows = train.iloc[:,1:-1].duplicated(keep=False)
@@ -53,7 +51,7 @@ for col in train.select_dtypes(['int64']).columns:
     num_ones=len(train[col][train[col]==1])
     num_zeros=len(train[col][train[col]==0])
     zeros[col]=num_zeros
-    ones[col]=num_ones   
+    ones[col]=num_ones
 binary_df['columns']=zeros.keys()
 binary_df['ones']=ones.values()
 binary_df['zeros']=zeros.values()
@@ -117,8 +115,6 @@ intest_only = np.setdiff1d(test['X0'].unique(),train['X0'].unique())
 pd.Series(map(lambda x: np.sum(test['X0']==x),intest_only),index= intest_only)
     # total 6 samples have new X0
 
-
-"""
 # X0 interaction with X1-X8
 def new_show_var(var_name):
     temp = train[var_name].to_frame().join(train['y'])
@@ -129,65 +125,13 @@ def new_show_var(var_name):
     plt.show()
 
 new_show_var('X5')
-"""
+
 
 # X5 vs ID
 train['ID']=train.index
 sns.boxplot(x='X5',y='ID',data=train)
 
 # X0 vs X10-X385
-"""
-['a',
- 'aa',
- 'ab',
- 'ac',
- 'ad',
- 'af',
- 'ai',
- 'aj',
- 'ak',
- 'al',
- 'am',
- 'ao',
- 'ap',
- 'aq',
- 'as',
- 'at',
- 'au',
- 'aw',
- 'ax',
- 'ay',
- 'az',
- 'b',
- 'ba',
- 'bc',
- 'c',
- 'd',
- 'e',
- 'f',
- 'g',
- 'h',
- 'i',
- 'j',
- 'k',
- 'l',
- 'm',
- 'n',
- 'o',
- 'q',
- 'r',
- 's',
- 't',
- 'u',
- 'v',
- 'w',
- 'x',
- 'y',
- 'z']
-"""
-
-
-
 train2 = pd.DataFrame.from_csv("./cleaned3/train.csv")
 del train2['y']
 train2['y'] = train['y']
@@ -202,7 +146,7 @@ y_linear_train = linear_fit.predict(train2[X0_cols]) # linear pred on train
 res = train2['y'] - y_linear_train # residual
 train2['res'] = res
 train2.sort_values(by=['res'],inplace=True)
-      
+
 # remove duplicated columns
 bin_cols = [x for x in train2.columns if not '_' in x][:-3]
 temp = train2[bin_cols].T.duplicated()
@@ -250,10 +194,6 @@ def X_distr(v):
     print(train2.loc[:,['X0','res','y',v]].groupby(v).mean())
     print(train2.loc[:,['X0','res','y',v]].groupby(v).size())
 
-    #if n < 50:
-    #    sns.heatmap(train2.loc[train2[v]==1,out.index])
-    #    plt.show()
-
 X_distr('X314')
 
 
@@ -295,11 +235,11 @@ def check_new_group(v):
     print('new:')
     sns.distplot(train2.loc[new_x0==v,'y'],bins=40)
     plt.show()
-    
+
 check_new_group('ay')
 """----------------------
 EXPLORATION with y
-----------------------""" 
+----------------------"""
 
 # distribution of y
 plt.figure(figsize=(15,10))
@@ -307,9 +247,6 @@ fig = sns.distplot(train['y'],bins=100)
 plt.xlabel('Y')
 plt.title('Distribution of Y variable')
 fig.get_figure().savefig('y_dist.pdf')
-
-
-# y vs all binary
 
 
 # y vs row sum

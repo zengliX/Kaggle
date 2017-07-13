@@ -17,9 +17,7 @@ from sklearn.decomposition import PCA, FastICA
 import lightgbm as lgb
 
 # command line inputs
-#input_fd = '../data/cleaned3'
-#output_fd = './0710_ica15_mca_tune'
-input_fd=sys.argv[1] 
+input_fd=sys.argv[1]
 output_fd = sys.argv[2]
 
 if not os.path.exists(output_fd):
@@ -28,7 +26,7 @@ if not os.path.exists(output_fd):
 
 """----------------------
 LOAD DATA
-----------------------""" 
+----------------------"""
 TRAIN = pd.DataFrame.from_csv(os.path.join(input_fd,'train.csv'))
 TEST = pd.DataFrame.from_csv(os.path.join(input_fd,'test.csv'))
 
@@ -39,12 +37,12 @@ del TEST['y']
 
 """----------------------
 LINEAR MODEL with X0
-----------------------""" 
+----------------------"""
 X0_cols = list(filter(lambda x: 'X0'+'_' in x, TRAIN.columns))
 
 linear_fit = LinearRegression(fit_intercept=False)
 linear_fit.fit(TRAIN[X0_cols],y)
-linear_fit.score(TRAIN[X0_cols],y)        
+linear_fit.score(TRAIN[X0_cols],y)
 y_linear_train = linear_fit.predict(TRAIN[X0_cols]) # linear pred on train
 y_linear_test = linear_fit.predict(TEST[X0_cols]) # linear pred on test
 res = y - y_linear_train # residual
@@ -90,7 +88,7 @@ TEST.drop(temp.index[temp],axis=1,inplace=True)
 
 """----------------------
 GENERATE PARAMETERS
-----------------------""" 
+----------------------"""
 def param_gen(rate,num_leaves,sub,lamb):
     out= []
     for r,m,s,l in itertools.product(rate,num_leaves,sub,lamb):
@@ -114,7 +112,7 @@ params_list = param_gen(rate=[.05,.01,.005,.002],num_leaves=[4,5,6,7,8,9],sub=[1
 
 """----------------------
 CROSS VALIDATION IN TRAINING
-----------------------""" 
+----------------------"""
 np.random.seed(12)
 
 """
@@ -143,7 +141,7 @@ def myCV(lgb_params):
         print('calculating fold:',ct)
         # split data
         X_train, X_test = TRAIN.iloc[train_ind], TRAIN.iloc[test_ind]
-        y_train, y_test = res.iloc[train_ind], res.iloc[test_ind]    
+        y_train, y_test = res.iloc[train_ind], res.iloc[test_ind]
         # fit lgb
         dtrain = lgb.Dataset(X_train, y_train)
         # get best iter
@@ -177,7 +175,7 @@ for lgb_params in params_list:
     f.write('time remaining: '+str((len(params_list)-ct)*speed/60)+' mins\n')
     f.close()
     print('------------------------------------------------------')
-    
+
 # save cv_results
 cv_file = output_fd+'/cv_out.pckl'
 f = open(cv_file,'wb')
@@ -196,7 +194,7 @@ final_params = cv_out[np.argmax([x['fit']['test_r2_mean'] for x in cv_out])]['pa
 
 """----------------------
 FINAL MODEL
-----------------------""" 
+----------------------"""
 
 lgb_train = lgb.Dataset(TRAIN, res)
 cv_results = lgb.cv(final_params, lgb_train, early_stopping_rounds = 40,num_boost_round = 3000, nfold=5)
@@ -219,7 +217,7 @@ f.close()
 print('------------------------------------------------------')
 """----------------------
 PREDICTION
-----------------------""" 
+----------------------"""
 
 # make predictions and save results
 
@@ -235,6 +233,3 @@ output.to_csv(output_fd+'/LGB_withLinear_mcaica_tuned.csv',index_label='ID')
 imp = pd.Series(model2.feature_importance(),index=model2.feature_name())
 imp.sort_values(ascending=False,inplace=True)
 imp.to_csv(output_fd+'/importance.csv',index_label='feature')
-
-
-
